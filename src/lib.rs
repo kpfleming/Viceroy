@@ -41,6 +41,10 @@ mod streaming_body;
 mod upstream;
 pub mod wiggle_abi;
 
+/// Lua API implementation
+#[cfg(feature = "lua_api")]
+mod lua_api;
+
 pub use {
     error::Error, execute::ExecuteCtx, execute::GuestProfileConfig, execute::WasmFeatures,
     service::ViceroyService, upstream::BackendConnector, wasmtime::ProfilingStrategy,

@@ -64,6 +64,10 @@ pub use crate::secret_store::{SecretStore, SecretStores};
 
 pub use crate::shielding_site::ShieldingSites;
 
+/// Lua API implementation
+#[cfg(feature = "lua_api")]
+mod lua_api;
+
 /// A set of fake valid Fastly keys for testing `fastly_key_is_valid`.
 ///
 /// Real Fastly API keys should never be used in local testing. These are fake

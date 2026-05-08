@@ -1,6 +1,7 @@
 mod client_cert_info;
 
 use {
+    crate::error::BackendConfigError,
     hyper::{Uri, header::HeaderValue},
     std::{collections::HashMap, sync::Arc},
 };
@@ -19,6 +20,27 @@ pub enum BackendHealth {
     Unhealthy,
 }
 
+#[cfg(feature = "lua_api")]
+impl BackendHealth {
+    pub fn as_string(&self) -> String {
+        match self {
+            BackendHealth::Healthy => "healthy",
+            BackendHealth::Unhealthy => "unhealthy",
+            BackendHealth::Unknown => "unknown",
+        }
+        .to_string()
+    }
+
+    pub fn from_string(health: String) -> Result<Self, BackendConfigError> {
+        match health.as_str() {
+            "healthy" => Ok(BackendHealth::Healthy),
+            "unhealthy" => Ok(BackendHealth::Unhealthy),
+            "unknown" => Ok(BackendHealth::Unknown),
+            _ => Err(BackendConfigError::InvalidHealthEntry(health)),
+        }
+    }
+}
+
 /// A single backend definition.
 #[derive(Clone, Debug)]
 pub struct Backend {
@@ -30,6 +52,48 @@ pub struct Backend {
     pub client_cert: Option<ClientCertInfo>,
     pub ca_certs: Vec<rustls::Certificate>,
     pub health: BackendHealth,
+}
+
+#[cfg(feature = "lua_api")]
+impl Backend {
+    pub fn new(url: String) -> Result<Self, BackendConfigError> {
+        Ok(Self {
+            uri: url.parse::<Uri>().map_err(BackendConfigError::from)?,
+            override_host: None,
+            cert_host: None,
+            use_sni: true,
+            grpc: false,
+            client_cert: None,
+            ca_certs: Vec::new(),
+            health: BackendHealth::Unknown,
+        })
+    }
+
+    pub fn health(&self) -> String {
+        self.health.as_string()
+    }
+
+    pub fn set_health(&mut self, val: String) -> Result<(), BackendConfigError> {
+        self.health = BackendHealth::from_string(val)?;
+        Ok(())
+    }
+
+    pub fn override_host(&self) -> String {
+        match &self.override_host {
+            Some(host) => host.to_str().unwrap().to_string(),
+            None => String::new(),
+        }
+    }
+
+    pub fn set_override_host(&mut self, val: String) -> Result<(), BackendConfigError> {
+        if val.trim().is_empty() {
+            self.override_host = None;
+        } else {
+            self.override_host =
+                Some(HeaderValue::from_str(&val).map_err(BackendConfigError::from)?);
+        }
+        Ok(())
+    }
 }
 
 /// A map of [`Backend`] definitions, keyed by their name.
